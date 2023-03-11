@@ -2,6 +2,7 @@
 import random
 import json
 import sys
+import pyperclip
 
 # Load quotes from JSON file
 with open('trump.json', 'r') as f:
@@ -39,7 +40,6 @@ niceQuotes = [
 def generate_insult(name):
     # Convert name to lowercase for case-insensitive comparison
     name = name.lower()
-
     # Check if name matches specific names for nice quotes
     if 'donald' in name or 'trump' in name or 'ivanka' in name:
         # Return a random nice quote
@@ -76,11 +76,14 @@ def main():
         print("Usage: python insults.py [name]")
         return
 
-    # Get the name from the command line argument
+    # Get the name from the command line argument and strip any extra spaces
     name = sys.argv[1].strip()
 
     # Generate the insult
     insult = generate_insult(name)
+
+    # Copy the insult to the clipboard
+    pyperclip.copy(insult)
 
     # Print the insult
     print(insult)
