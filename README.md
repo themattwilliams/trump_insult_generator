@@ -3,15 +3,15 @@ Are you ready to *unleash a barrage of spiteful jabs*, inspired by none other th
 
 With the *unmatched eloquence* and *inimitable grandiosity* of the man himself, you shall have them cowering and retreating to their safe spaces faster than you can say "**LOSER**"! :rocket:
 
-So, *don your finest suit*, adjust your extravagant extra-long tie :necktie:, and prepare to bask in the glory of the **BEST Trump Insult Generator EVER**. :trophy: Witness, as your foes scurry for cover :running_man:, and your friends reel in disbelief :scream: at your newfound talent for Trumpian invective.
+So, *don the most luxurious suit you've ever seen*, adjust your extravagant extra-long tie :necktie:, and prepare to bask in the glory of the **BEST Trump Insult Generator EVER**. :trophy: Witness, as your foes scurry for cover :running_man:, and your friends reel in disbelief :scream: at your newfound talent for Trumpian invective.
 
-Onward, brave soul :muscle:, and let the games begin! :tada:
+Charge forward, brave soul :muscle:, and let the YUGE games commence! :tada:
 
 ## Okay, but actually what is it?
 
 This Python program generates a humorous insult based on a name, using quotes from a JSON file containing Donald Trump's actual quotes. If the provided name is associated with Trump, the program will generate a nice quote instead. 
 
-The insult will by copied to the clipboard for easy pasting into your favorite toxic videogame, chat server, text message, or just to adorn the desk of your coworkers.
+The insult will by copied to the clipboard for easy pasting into your favorite  salt-infused videogame, chaotic chat server, snarky text message, or just to adorn the desk of your coworkers.
 
 ## Requirements
 
