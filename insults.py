@@ -61,13 +61,20 @@ def generate_insult(name):
         # Remove extra space before the name if it's the first word
         if i == 0 and words[0][-1] == ',':
             words[0] = words[0][:-1]
-
         # Remove extra space after the name if it's the last word
-        if i == len(template) - 1 and words[-1][-1] == ',':
+        elif i == len(template) - 1 and words[-1][-1] == ',':
             words[-1] = words[-1][:-1]
+        # Replace " ," with ","
+    if " ," in words:
+        words = words.replace(" ,", ",")
 
     # Join the words into a single string with spaces and strip extra spaces
-    return ' '.join(words).strip()
+    word_string = ' '.join(words).strip()
+    if " ," in word_string:
+        word_string = word_string.replace(" ,", ",")
+    
+    return word_string
+
 
 # Main function to get name from command line and generate insult
 def main():
