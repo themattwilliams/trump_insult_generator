@@ -27,6 +27,12 @@ class LauncherFileTests(unittest.TestCase):
 
         self.assertIn(".venv/", gitignore)
 
+    def test_requirements_do_not_need_extra_tray_dependencies(self):
+        requirements = (PROJECT_ROOT / "requirements.txt").read_text(encoding="utf-8").lower()
+
+        self.assertNotIn("pystray", requirements)
+        self.assertNotIn("pillow", requirements)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -310,6 +310,7 @@ class InsultGeneratorApp:
         self.config = load_config()
         self.hotkey = None
         self.overlay_preview = None
+        self.tray_controller = None
 
         root.title("Trump Insult Generator")
         root.geometry("600x390")
@@ -323,6 +324,7 @@ class InsultGeneratorApp:
         self.latest_var = tk.StringVar(value="")
         self.target_combo = None
         self.overlay_preview = OverlayPreview(root)
+        self.tray_controller = TrayController(self)
 
         self._build()
         root.protocol("WM_DELETE_WINDOW", self.quit)
@@ -368,6 +370,7 @@ class InsultGeneratorApp:
         ttk.Button(buttons, text="Save Target", command=self.save_current_config).pack(side="left", padx=(0, 8))
         self.hotkey_button = ttk.Button(buttons, text="Start Hotkeys", command=self.toggle_hotkeys)
         self.hotkey_button.pack(side="left", padx=(0, 8))
+        ttk.Button(buttons, text="Hide to Tray", command=self.hide_to_tray).pack(side="left", padx=(0, 8))
         ttk.Button(buttons, text="Quit", command=self.quit).pack(side="right")
 
         latest = ttk.Label(
@@ -445,7 +448,23 @@ class InsultGeneratorApp:
     def quit(self):
         if self.hotkey:
             self.hotkey.stop()
+        if self.tray_controller:
+            self.tray_controller.stop()
         self.root.destroy()
+
+    def hide_to_tray(self):
+        try:
+            self.tray_controller.start()
+        except Exception as exc:
+            self.status_var.set(str(exc))
+            return
+        self.root.withdraw()
+        self.status_var.set("Running in tray")
+
+    def restore_from_tray(self):
+        self.root.deiconify()
+        self.root.lift()
+        self.root.focus_force()
 
 
 class OverlayPreview:
@@ -527,11 +546,144 @@ class OverlayPreview:
         return "\n".join(lines[:2])
 
 
-def run_gui():
+class TrayController:
+    def __init__(self, app):
+        self.app = app
+        self.enabled = False
+        self.callback = None
+        self.original_wndproc = None
+        self.hwnd = None
+        self.icon_id = 1
+        self.message_id = 0x0400 + 20
+
+    def start(self):
+        if self.enabled:
+            return
+        if sys.platform != "win32":
+            raise RuntimeError("System tray mode is currently supported on Windows only.")
+
+        self.hwnd = int(self.app.root.winfo_id())
+        self._subclass_window()
+        self._add_icon()
+        self.enabled = True
+
+    def stop(self):
+        if not self.enabled:
+            return
+        self._delete_icon()
+        self._restore_window_proc()
+        self.enabled = False
+
+    def _restore(self):
+        self.app.root.after(0, self.app.restore_from_tray)
+
+    def _generate_copy(self):
+        self.app.root.after(0, self.app.generate_copy)
+
+    def _quit(self):
+        self.app.root.after(0, self.app.quit)
+
+    def _subclass_window(self):
+        user32 = ctypes.windll.user32
+        self.callback = ctypes.WINFUNCTYPE(
+            ctypes.c_longlong,
+            wintypes.HWND,
+            wintypes.UINT,
+            wintypes.WPARAM,
+            wintypes.LPARAM,
+        )(self._wndproc)
+        set_window_long = self._set_window_long_ptr()
+        self.original_wndproc = set_window_long(self.hwnd, -4, ctypes.cast(self.callback, ctypes.c_void_p))
+
+    def _restore_window_proc(self):
+        if self.original_wndproc:
+            self._set_window_long_ptr()(self.hwnd, -4, self.original_wndproc)
+            self.original_wndproc = None
+            self.callback = None
+
+    def _wndproc(self, hwnd, msg, wparam, lparam):
+        if msg == self.message_id:
+            if lparam == 0x0203:  # WM_LBUTTONDBLCLK
+                self._restore()
+                return 0
+            if lparam == 0x0205:  # WM_RBUTTONUP
+                self._show_menu()
+                return 0
+        return ctypes.windll.user32.CallWindowProcW(self.original_wndproc, hwnd, msg, wparam, lparam)
+
+    def _show_menu(self):
+        user32 = ctypes.windll.user32
+        menu = user32.CreatePopupMenu()
+        user32.AppendMenuW(menu, 0, 1001, "Restore")
+        user32.AppendMenuW(menu, 0, 1002, "Generate + Copy")
+        user32.AppendMenuW(menu, 0, 1003, "Quit")
+        point = wintypes.POINT()
+        user32.GetCursorPos(ctypes.byref(point))
+        user32.SetForegroundWindow(self.hwnd)
+        command = user32.TrackPopupMenu(menu, 0x0100, point.x, point.y, 0, self.hwnd, None)
+        user32.DestroyMenu(menu)
+        if command == 1001:
+            self._restore()
+        elif command == 1002:
+            self._generate_copy()
+        elif command == 1003:
+            self._quit()
+
+    def _add_icon(self):
+        shell32 = ctypes.windll.shell32
+        user32 = ctypes.windll.user32
+        user32.LoadIconW.argtypes = [wintypes.HINSTANCE, ctypes.c_void_p]
+        user32.LoadIconW.restype = wintypes.HICON
+        data = self._notify_icon_data()
+        data.hWnd = self.hwnd
+        data.uID = self.icon_id
+        data.uFlags = 0x01 | 0x02 | 0x04
+        data.uCallbackMessage = self.message_id
+        data.hIcon = user32.LoadIconW(None, ctypes.c_void_p(32512))
+        data.szTip = "Trump Insult Generator"
+        if not shell32.Shell_NotifyIconW(0x00000000, ctypes.byref(data)):
+            raise ctypes.WinError()
+
+    def _delete_icon(self):
+        data = self._notify_icon_data()
+        data.hWnd = self.hwnd
+        data.uID = self.icon_id
+        ctypes.windll.shell32.Shell_NotifyIconW(0x00000002, ctypes.byref(data))
+
+    def _notify_icon_data(self):
+        class NOTIFYICONDATAW(ctypes.Structure):
+            _fields_ = [
+                ("cbSize", wintypes.DWORD),
+                ("hWnd", wintypes.HWND),
+                ("uID", wintypes.UINT),
+                ("uFlags", wintypes.UINT),
+                ("uCallbackMessage", wintypes.UINT),
+                ("hIcon", wintypes.HICON),
+                ("szTip", wintypes.WCHAR * 128),
+            ]
+
+        data = NOTIFYICONDATAW()
+        data.cbSize = ctypes.sizeof(NOTIFYICONDATAW)
+        return data
+
+    def _set_window_long_ptr(self):
+        user32 = ctypes.windll.user32
+        if ctypes.sizeof(ctypes.c_void_p) == 8:
+            func = user32.SetWindowLongPtrW
+        else:
+            func = user32.SetWindowLongW
+        func.argtypes = [wintypes.HWND, ctypes.c_int, ctypes.c_void_p]
+        func.restype = ctypes.c_void_p
+        return func
+
+
+def run_gui(start_in_tray=False):
     import tkinter as tk
 
     root = tk.Tk()
-    InsultGeneratorApp(root)
+    app = InsultGeneratorApp(root)
+    if start_in_tray:
+        root.after(300, app.hide_to_tray)
     root.mainloop()
 
 
@@ -571,6 +723,7 @@ def build_parser():
     parser.add_argument("--loop", action="store_true", help="Run a persistent global-hotkey copy loop.")
     parser.add_argument("--gui", action="store_true", help="Open the control window.")
     parser.add_argument("--validate", action="store_true", help="Validate trump.json and templates.")
+    parser.add_argument("--tray", action="store_true", help="Open the app minimized to the system tray.")
     return parser
 
 
@@ -600,8 +753,8 @@ def main(argv=None):
             print(target)
         return 0
 
-    if args.gui:
-        run_gui()
+    if args.gui or args.tray:
+        run_gui(start_in_tray=args.tray)
         return 0
 
     if args.validate:

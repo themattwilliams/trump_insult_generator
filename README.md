@@ -85,6 +85,14 @@ Run persistent hotkey mode using the saved target:
 .\run_insult_generator.bat --loop
 ```
 
+Open directly to the system tray:
+
+```powershell
+.\run_insult_generator.bat --tray
+```
+
+In tray mode, double-click the icon to restore the window, or right-click for Restore, Generate + Copy, and Quit.
+
 Change the hotkey:
 
 ```powershell

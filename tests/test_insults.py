@@ -136,6 +136,11 @@ class InsultGeneratorTests(unittest.TestCase):
 
         self.assertIn("Blank quote fragment in category: kicker", errors)
 
+    def test_parser_accepts_tray_mode_flag(self):
+        args = insults.build_parser().parse_args(["--tray"])
+
+        self.assertTrue(args.tray)
+
 
 if __name__ == "__main__":
     unittest.main()
