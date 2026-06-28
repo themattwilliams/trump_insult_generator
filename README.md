@@ -20,12 +20,20 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
+Recommended Windows launch:
+
+```powershell
+.\run_insult_generator.bat
+```
+
+The batch launcher creates `.venv` if needed, installs dependencies from `requirements.txt` into that virtual environment, and starts the app with `.venv\Scripts\python.exe`. On later launches it reuses `.venv` and skips dependency install unless `requirements.txt` changes.
+
 ## Default GUI Usage
 
 Run:
 
 ```powershell
-python insults.py
+.\run_insult_generator.bat
 ```
 
 Then:
@@ -43,31 +51,31 @@ The app does not send chat messages or interact with the game process. It only w
 Generate once, copy to clipboard, and print only the insult:
 
 ```powershell
-python insults.py "xX_Player_Xx"
+.\run_insult_generator.bat "xX_Player_Xx"
 ```
 
 Save a default target:
 
 ```powershell
-python insults.py --set-target "xX_Player_Xx"
+.\run_insult_generator.bat --set-target "xX_Player_Xx"
 ```
 
 Generate for the saved target:
 
 ```powershell
-python insults.py --copy
+.\run_insult_generator.bat --copy
 ```
 
 Run persistent hotkey mode using the saved target:
 
 ```powershell
-python insults.py --loop
+.\run_insult_generator.bat --loop
 ```
 
 Change the hotkey:
 
 ```powershell
-python insults.py --hotkey F9 --set-target "xX_Player_Xx"
+.\run_insult_generator.bat --hotkey F9 --set-target "xX_Player_Xx"
 ```
 
 ## Config
