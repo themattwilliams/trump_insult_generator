@@ -60,6 +60,33 @@ class InsultGeneratorTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             insults.hotkey_to_vk("ENTER")
 
+    def test_validate_quote_data_accepts_current_corpus(self):
+        errors = insults.validate_quote_data(insults.load_quotes())
+
+        self.assertEqual(errors, [])
+
+    def test_validate_quote_data_reports_missing_template_key(self):
+        quote_data = {
+            "subjectnamesecond": ["Crooked"],
+            "subjectnametwice1": ["I've warned about "],
+            "subjectnametwice2": ["for years."],
+            "predicate": ["lost."],
+            "insult3": ["Sad."],
+            "kicker": ["Wow!"],
+        }
+
+        errors = insults.validate_quote_data(quote_data)
+
+        self.assertIn("Missing quote category: subjectnamefirst", errors)
+
+    def test_validate_quote_data_reports_blank_fragments(self):
+        quote_data = {key: ["Valid"] for key in insults.required_quote_keys()}
+        quote_data["kicker"] = ["  "]
+
+        errors = insults.validate_quote_data(quote_data)
+
+        self.assertIn("Blank quote fragment in category: kicker", errors)
+
 
 if __name__ == "__main__":
     unittest.main()

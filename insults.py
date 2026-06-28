@@ -69,6 +69,44 @@ def load_quotes(path=DATA_PATH):
         return json.load(quotes_file)
 
 
+def required_quote_keys():
+    keys = set()
+    for template in templates:
+        for word in template:
+            if word != "user_name":
+                keys.add(word)
+    return sorted(keys)
+
+
+def validate_quote_data(quote_data, active_templates=None):
+    errors = []
+    template_keys = set()
+    for template in active_templates or templates:
+        for word in template:
+            if word != "user_name":
+                template_keys.add(word)
+
+    for key in sorted(template_keys):
+        if key not in quote_data:
+            errors.append(f"Missing quote category: {key}")
+            continue
+        if not isinstance(quote_data[key], list):
+            errors.append(f"Quote category is not a list: {key}")
+            continue
+        if not quote_data[key]:
+            errors.append(f"Empty quote category: {key}")
+            continue
+        for fragment in quote_data[key]:
+            if not isinstance(fragment, str):
+                errors.append(f"Non-string quote fragment in category: {key}")
+                break
+            if not fragment.strip():
+                errors.append(f"Blank quote fragment in category: {key}")
+                break
+
+    return errors
+
+
 def generate_insult(name, quotes_data=None, rng=None):
     cleaned_name = clean_target_name(name)
     if not cleaned_name:
@@ -373,6 +411,7 @@ def build_parser():
     parser.add_argument("--copy", action="store_true", help="Generate, copy, and print one insult.")
     parser.add_argument("--loop", action="store_true", help="Run a persistent global-hotkey copy loop.")
     parser.add_argument("--gui", action="store_true", help="Open the control window.")
+    parser.add_argument("--validate", action="store_true", help="Validate trump.json and templates.")
     return parser
 
 
@@ -397,6 +436,15 @@ def main(argv=None):
 
     if args.gui:
         run_gui()
+        return 0
+
+    if args.validate:
+        errors = validate_quote_data(load_quotes())
+        if errors:
+            for error in errors:
+                print(error, file=sys.stderr)
+            return 1
+        print("trump.json is valid.")
         return 0
 
     if args.loop:
