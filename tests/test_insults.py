@@ -141,6 +141,9 @@ class InsultGeneratorTests(unittest.TestCase):
 
         self.assertTrue(args.tray)
 
+    def test_data_path_points_to_trump_json(self):
+        self.assertEqual(insults.get_data_path().name, "trump.json")
+
 
 if __name__ == "__main__":
     unittest.main()

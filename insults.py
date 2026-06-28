@@ -66,7 +66,15 @@ def format_insult_parts(parts):
     return text
 
 
-def load_quotes(path=DATA_PATH):
+def get_data_path(filename="trump.json"):
+    if getattr(sys, "frozen", False):
+        return Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent)) / filename
+    return Path(__file__).with_name(filename)
+
+
+def load_quotes(path=None):
+    if path is None:
+        path = get_data_path()
     with Path(path).open("r", encoding="utf-8") as quotes_file:
         return json.load(quotes_file)
 

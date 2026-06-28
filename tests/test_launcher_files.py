@@ -33,6 +33,20 @@ class LauncherFileTests(unittest.TestCase):
         self.assertNotIn("pystray", requirements)
         self.assertNotIn("pillow", requirements)
 
+    def test_windows_build_script_packages_one_file_exe(self):
+        build_script = PROJECT_ROOT / "build_windows_exe.bat"
+        build_requirements = PROJECT_ROOT / "requirements-build.txt"
+
+        self.assertTrue(build_script.exists())
+        self.assertTrue(build_requirements.exists())
+        content = build_script.read_text(encoding="utf-8").lower()
+        self.assertIn("pyinstaller", content)
+        self.assertIn("--onefile", content)
+        self.assertIn("--windowed", content)
+        self.assertIn("--add-data", content)
+        self.assertIn("trump.json", content)
+        self.assertIn("trumpinsultgenerator", content)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -129,6 +129,14 @@ Run a syntax check:
 python -m py_compile insults.py
 ```
 
+Build a one-file Windows executable:
+
+```powershell
+.\build_windows_exe.bat
+```
+
+The packaged app is written to `dist\TrumpInsultGenerator.exe`. Build output folders are ignored by git.
+
 ## Modifying Insults
 
 Edit `trump.json` to change quote fragments. Edit the `templates` list in `insults.py` to change how fragments are assembled.
