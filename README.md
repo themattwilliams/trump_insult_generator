@@ -41,8 +41,9 @@ Then:
 1. Enter or select the target player or character name exactly as you want it to appear.
 2. Add optional context if useful for later modes.
 3. Choose a function-key hotkey. Default is `F8`.
-4. Click `Generate + Copy` to create one insult and copy it.
-5. Click `Start Hotkeys` to let the hotkey generate and copy a fresh insult while the app is running.
+4. Optionally enable overlay preview to show the copied insult briefly near the top of the screen.
+5. Click `Generate + Copy` to create one insult and copy it.
+6. Click `Start Hotkeys` to let the hotkey generate and copy a fresh insult while the app is running.
 
 The app does not send chat messages or interact with the game process. It only writes text to the clipboard.
 
@@ -104,6 +105,7 @@ Stored fields:
 - `targets`
 - `context`
 - `hotkey`
+- `overlay`
 
 ## Development
 

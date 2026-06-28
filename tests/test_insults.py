@@ -35,6 +35,7 @@ class InsultGeneratorTests(unittest.TestCase):
                     "targets": ["xX_Player_Xx"],
                     "context": "ranked match",
                     "hotkey": "F8",
+                    "overlay": True,
                 },
                 path=config_path,
             )
@@ -46,8 +47,19 @@ class InsultGeneratorTests(unittest.TestCase):
                     "targets": ["xX_Player_Xx"],
                     "context": "ranked match",
                     "hotkey": "F8",
+                    "overlay": True,
                 },
             )
+
+    def test_load_config_defaults_overlay_to_false(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config_path = Path(tmp_dir) / "config.json"
+            config_path.write_text(
+                '{"target": "Main_Player", "targets": ["Main_Player"], "context": "", "hotkey": "F8"}',
+                encoding="utf-8",
+            )
+
+            self.assertFalse(insults.load_config(path=config_path)["overlay"])
 
     def test_load_config_migrates_single_target_into_targets_list(self):
         with tempfile.TemporaryDirectory() as tmp_dir:

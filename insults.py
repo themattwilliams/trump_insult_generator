@@ -22,6 +22,7 @@ DEFAULT_CONFIG = {
     "targets": [],
     "context": "",
     "hotkey": "F8",
+    "overlay": False,
 }
 
 
@@ -167,6 +168,11 @@ def load_config(path=None):
     for key in DEFAULT_CONFIG:
         if key == "targets":
             continue
+        if key == "overlay":
+            value = loaded.get(key)
+            if isinstance(value, bool):
+                config[key] = value
+            continue
         value = loaded.get(key)
         if isinstance(value, str):
             config[key] = value
@@ -183,6 +189,9 @@ def save_config(config, path=None):
     merged = dict(DEFAULT_CONFIG)
     for key in DEFAULT_CONFIG:
         if key == "targets":
+            continue
+        if key == "overlay":
+            merged[key] = bool(config.get(key, DEFAULT_CONFIG[key]))
             continue
         value = config.get(key, DEFAULT_CONFIG[key])
         merged[key] = str(value)
@@ -300,17 +309,20 @@ class InsultGeneratorApp:
         self.ttk = ttk
         self.config = load_config()
         self.hotkey = None
+        self.overlay_preview = None
 
         root.title("Trump Insult Generator")
-        root.geometry("560x340")
-        root.minsize(480, 300)
+        root.geometry("600x390")
+        root.minsize(520, 340)
 
         self.target_var = tk.StringVar(value=self.config["target"])
         self.context_var = tk.StringVar(value=self.config["context"])
         self.hotkey_var = tk.StringVar(value=self.config["hotkey"])
+        self.overlay_var = tk.BooleanVar(value=bool(self.config["overlay"]))
         self.status_var = tk.StringVar(value="Ready")
         self.latest_var = tk.StringVar(value="")
         self.target_combo = None
+        self.overlay_preview = OverlayPreview(root)
 
         self._build()
         root.protocol("WM_DELETE_WINDOW", self.quit)
@@ -322,7 +334,7 @@ class InsultGeneratorApp:
         frame = ttk.Frame(root, padding=16)
         frame.pack(fill="both", expand=True)
         frame.columnconfigure(1, weight=1)
-        frame.rowconfigure(4, weight=1)
+        frame.rowconfigure(5, weight=1)
 
         ttk.Label(frame, text="Target name").grid(row=0, column=0, sticky="w", pady=(0, 8))
         self.target_combo = ttk.Combobox(
@@ -344,8 +356,14 @@ class InsultGeneratorApp:
             state="readonly",
         ).grid(row=2, column=1, sticky="w", pady=(0, 12))
 
+        ttk.Checkbutton(
+            frame,
+            text="Show overlay preview after copy",
+            variable=self.overlay_var,
+        ).grid(row=3, column=0, columnspan=2, sticky="w", pady=(0, 12))
+
         buttons = ttk.Frame(frame)
-        buttons.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(0, 12))
+        buttons.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(0, 12))
         ttk.Button(buttons, text="Generate + Copy", command=self.generate_copy).pack(side="left", padx=(0, 8))
         ttk.Button(buttons, text="Save Target", command=self.save_current_config).pack(side="left", padx=(0, 8))
         self.hotkey_button = ttk.Button(buttons, text="Start Hotkeys", command=self.toggle_hotkeys)
@@ -361,9 +379,9 @@ class InsultGeneratorApp:
             relief="solid",
             padding=10,
         )
-        latest.grid(row=4, column=0, columnspan=2, sticky="nsew", pady=(0, 8))
+        latest.grid(row=5, column=0, columnspan=2, sticky="nsew", pady=(0, 8))
 
-        ttk.Label(frame, textvariable=self.status_var).grid(row=5, column=0, columnspan=2, sticky="w")
+        ttk.Label(frame, textvariable=self.status_var).grid(row=6, column=0, columnspan=2, sticky="w")
 
     def save_current_config(self):
         target = clean_target_name(self.target_var.get())
@@ -372,6 +390,7 @@ class InsultGeneratorApp:
             "targets": self.config.get("targets", []),
             "context": self.context_var.get().strip(),
             "hotkey": self.hotkey_var.get().strip() or DEFAULT_CONFIG["hotkey"],
+            "overlay": bool(self.overlay_var.get()),
         }
         config = add_saved_target(config, target)
         save_config(config)
@@ -396,6 +415,8 @@ class InsultGeneratorApp:
             return
 
         self.latest_var.set(insult)
+        if self.overlay_var.get():
+            self.overlay_preview.show(insult)
         self.status_var.set("Copied")
 
     def toggle_hotkeys(self):
@@ -425,6 +446,85 @@ class InsultGeneratorApp:
         if self.hotkey:
             self.hotkey.stop()
         self.root.destroy()
+
+
+class OverlayPreview:
+    def __init__(self, root, duration_ms=2500):
+        import tkinter as tk
+
+        self.root = root
+        self.tk = tk
+        self.duration_ms = duration_ms
+        self.window = None
+        self.after_id = None
+
+    def show(self, text):
+        if self.window:
+            self.hide()
+
+        window = self.tk.Toplevel(self.root)
+        window.overrideredirect(True)
+        window.attributes("-topmost", True)
+        window.attributes("-alpha", 0.92)
+        width = min(max(520, len(text) * 7), 1100)
+        height = 90
+        screen_width = window.winfo_screenwidth()
+        x = max(0, int((screen_width - width) / 2))
+        window.geometry(f"{width}x{height}+{x}+24")
+        window.configure(bg="black")
+
+        canvas = self.tk.Canvas(window, bg="black", highlightthickness=0)
+        canvas.pack(fill="both", expand=True)
+        wrapped = self._wrap_text(text, width)
+        for dx, dy in [(-2, 0), (2, 0), (0, -2), (0, 2), (-1, -1), (1, 1)]:
+            canvas.create_text(
+                width // 2 + dx,
+                height // 2 + dy,
+                text=wrapped,
+                fill="black",
+                font=("Segoe UI", 18, "bold"),
+                width=width - 30,
+                justify="center",
+            )
+        canvas.create_text(
+            width // 2,
+            height // 2,
+            text=wrapped,
+            fill="white",
+            font=("Segoe UI", 18, "bold"),
+            width=width - 30,
+            justify="center",
+        )
+
+        self.window = window
+        self.after_id = self.root.after(self.duration_ms, self.hide)
+
+    def hide(self):
+        if self.after_id:
+            self.root.after_cancel(self.after_id)
+            self.after_id = None
+        if self.window:
+            self.window.destroy()
+            self.window = None
+
+    def _wrap_text(self, text, width):
+        max_chars = max(40, width // 12)
+        words = text.split()
+        lines = []
+        current = []
+        current_len = 0
+        for word in words:
+            next_len = current_len + len(word) + (1 if current else 0)
+            if current and next_len > max_chars:
+                lines.append(" ".join(current))
+                current = [word]
+                current_len = len(word)
+            else:
+                current.append(word)
+                current_len = next_len
+        if current:
+            lines.append(" ".join(current))
+        return "\n".join(lines[:2])
 
 
 def run_gui():
