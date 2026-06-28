@@ -19,6 +19,7 @@ except ImportError:  # pragma: no cover - exercised by users without setup
 DATA_PATH = Path(__file__).with_name("trump.json")
 DEFAULT_CONFIG = {
     "target": "",
+    "targets": [],
     "context": "",
     "hotkey": "F8",
 }
@@ -156,6 +157,7 @@ def get_config_path():
 def load_config(path=None):
     config_path = Path(path) if path else get_config_path()
     config = dict(DEFAULT_CONFIG)
+    config["targets"] = []
     if not config_path.exists():
         return config
 
@@ -163,9 +165,16 @@ def load_config(path=None):
         loaded = json.load(config_file)
 
     for key in DEFAULT_CONFIG:
+        if key == "targets":
+            continue
         value = loaded.get(key)
         if isinstance(value, str):
             config[key] = value
+
+    loaded_targets = loaded.get("targets", [])
+    if isinstance(loaded_targets, list):
+        config["targets"] = normalize_targets(loaded_targets)
+    config["targets"] = add_target_to_list(config["targets"], config["target"])
     return config
 
 
@@ -173,13 +182,51 @@ def save_config(config, path=None):
     config_path = Path(path) if path else get_config_path()
     merged = dict(DEFAULT_CONFIG)
     for key in DEFAULT_CONFIG:
+        if key == "targets":
+            continue
         value = config.get(key, DEFAULT_CONFIG[key])
         merged[key] = str(value)
+    merged["targets"] = normalize_targets(config.get("targets", []))
+    merged["targets"] = add_target_to_list(merged["targets"], merged["target"])
 
     config_path.parent.mkdir(parents=True, exist_ok=True)
     with config_path.open("w", encoding="utf-8") as config_file:
         json.dump(merged, config_file, indent=2)
         config_file.write("\n")
+
+
+def normalize_targets(targets):
+    normalized = []
+    for target in targets or []:
+        cleaned = clean_target_name(target)
+        if cleaned and cleaned not in normalized:
+            normalized.append(cleaned)
+    return normalized
+
+
+def add_target_to_list(targets, target):
+    normalized = [existing for existing in normalize_targets(targets) if existing != clean_target_name(target)]
+    cleaned = clean_target_name(target)
+    if cleaned:
+        normalized.append(cleaned)
+    return normalized
+
+
+def add_saved_target(config, target):
+    updated = dict(config)
+    cleaned = clean_target_name(target)
+    updated["target"] = cleaned
+    updated["targets"] = add_target_to_list(config.get("targets", []), cleaned)
+    return updated
+
+
+def remove_saved_target(config, target):
+    updated = dict(config)
+    cleaned = clean_target_name(target)
+    updated["targets"] = [existing for existing in normalize_targets(config.get("targets", [])) if existing != cleaned]
+    if updated.get("target") == cleaned:
+        updated["target"] = updated["targets"][-1] if updated["targets"] else ""
+    return updated
 
 
 def hotkey_to_vk(hotkey):
@@ -263,6 +310,7 @@ class InsultGeneratorApp:
         self.hotkey_var = tk.StringVar(value=self.config["hotkey"])
         self.status_var = tk.StringVar(value="Ready")
         self.latest_var = tk.StringVar(value="")
+        self.target_combo = None
 
         self._build()
         root.protocol("WM_DELETE_WINDOW", self.quit)
@@ -277,7 +325,12 @@ class InsultGeneratorApp:
         frame.rowconfigure(4, weight=1)
 
         ttk.Label(frame, text="Target name").grid(row=0, column=0, sticky="w", pady=(0, 8))
-        ttk.Entry(frame, textvariable=self.target_var).grid(row=0, column=1, sticky="ew", pady=(0, 8))
+        self.target_combo = ttk.Combobox(
+            frame,
+            textvariable=self.target_var,
+            values=self.config["targets"],
+        )
+        self.target_combo.grid(row=0, column=1, sticky="ew", pady=(0, 8))
 
         ttk.Label(frame, text="Context").grid(row=1, column=0, sticky="w", pady=(0, 8))
         ttk.Entry(frame, textvariable=self.context_var).grid(row=1, column=1, sticky="ew", pady=(0, 8))
@@ -316,12 +369,16 @@ class InsultGeneratorApp:
         target = clean_target_name(self.target_var.get())
         config = {
             "target": target,
+            "targets": self.config.get("targets", []),
             "context": self.context_var.get().strip(),
             "hotkey": self.hotkey_var.get().strip() or DEFAULT_CONFIG["hotkey"],
         }
+        config = add_saved_target(config, target)
         save_config(config)
         self.config = config
         self.target_var.set(target)
+        if self.target_combo:
+            self.target_combo.configure(values=self.config["targets"])
         self.status_var.set("Saved")
 
     def generate_copy(self):
@@ -406,6 +463,8 @@ def build_parser():
     parser.add_argument("name", nargs="*", help="Target name for one generated insult.")
     parser.add_argument("--target", help="Target name for one generated insult.")
     parser.add_argument("--set-target", help="Save the default target name.")
+    parser.add_argument("--list-targets", action="store_true", help="Print saved targets and exit.")
+    parser.add_argument("--remove-target", help="Remove a saved target name.")
     parser.add_argument("--context", help="Save optional context for future modes.")
     parser.add_argument("--hotkey", help="Function key for --loop or GUI hotkey mode, default F8.")
     parser.add_argument("--copy", action="store_true", help="Generate, copy, and print one insult.")
@@ -425,14 +484,21 @@ def main(argv=None):
 
     config = load_config()
     if args.set_target is not None:
-        config["target"] = clean_target_name(args.set_target)
+        config = add_saved_target(config, args.set_target)
+    if args.remove_target is not None:
+        config = remove_saved_target(config, args.remove_target)
     if args.context is not None:
         config["context"] = args.context.strip()
     if args.hotkey is not None:
         hotkey_to_vk(args.hotkey)
         config["hotkey"] = args.hotkey.strip().upper()
-    if args.set_target is not None or args.context is not None or args.hotkey is not None:
+    if args.set_target is not None or args.remove_target is not None or args.context is not None or args.hotkey is not None:
         save_config(config)
+
+    if args.list_targets:
+        for target in config.get("targets", []):
+            print(target)
+        return 0
 
     if args.gui:
         run_gui()
@@ -458,7 +524,7 @@ def main(argv=None):
         print(insult)
         return 0
 
-    if args.set_target is not None or args.context is not None or args.hotkey is not None:
+    if args.set_target is not None or args.remove_target is not None or args.context is not None or args.hotkey is not None:
         return 0
 
     run_gui()

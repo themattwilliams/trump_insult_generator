@@ -38,7 +38,7 @@ Run:
 
 Then:
 
-1. Enter the target player or character name exactly as you want it to appear.
+1. Enter or select the target player or character name exactly as you want it to appear.
 2. Add optional context if useful for later modes.
 3. Choose a function-key hotkey. Default is `F8`.
 4. Click `Generate + Copy` to create one insult and copy it.
@@ -58,6 +58,18 @@ Save a default target:
 
 ```powershell
 .\run_insult_generator.bat --set-target "xX_Player_Xx"
+```
+
+List saved targets:
+
+```powershell
+.\run_insult_generator.bat --list-targets
+```
+
+Remove a saved target:
+
+```powershell
+.\run_insult_generator.bat --remove-target "xX_Player_Xx"
 ```
 
 Generate for the saved target:
@@ -89,6 +101,7 @@ The app stores config at:
 Stored fields:
 
 - `target`
+- `targets`
 - `context`
 - `hotkey`
 

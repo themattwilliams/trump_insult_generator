@@ -30,14 +30,51 @@ class InsultGeneratorTests(unittest.TestCase):
             config_path = Path(tmp_dir) / "config.json"
 
             insults.save_config(
-                {"target": "xX_Player_Xx", "context": "ranked match", "hotkey": "F8"},
+                {
+                    "target": "xX_Player_Xx",
+                    "targets": ["xX_Player_Xx"],
+                    "context": "ranked match",
+                    "hotkey": "F8",
+                },
                 path=config_path,
             )
 
             self.assertEqual(
                 insults.load_config(path=config_path),
-                {"target": "xX_Player_Xx", "context": "ranked match", "hotkey": "F8"},
+                {
+                    "target": "xX_Player_Xx",
+                    "targets": ["xX_Player_Xx"],
+                    "context": "ranked match",
+                    "hotkey": "F8",
+                },
             )
+
+    def test_load_config_migrates_single_target_into_targets_list(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config_path = Path(tmp_dir) / "config.json"
+            config_path.write_text(
+                '{"target": "Main_Player", "context": "", "hotkey": "F8"}',
+                encoding="utf-8",
+            )
+
+            self.assertEqual(
+                insults.load_config(path=config_path)["targets"],
+                ["Main_Player"],
+            )
+
+    def test_add_saved_target_preserves_order_and_avoids_duplicates(self):
+        config = {
+            "target": "Alpha",
+            "targets": ["Alpha", "Bravo"],
+            "context": "",
+            "hotkey": "F8",
+        }
+
+        updated = insults.add_saved_target(config, "Charlie")
+        updated = insults.add_saved_target(updated, "Bravo")
+
+        self.assertEqual(updated["target"], "Bravo")
+        self.assertEqual(updated["targets"], ["Alpha", "Charlie", "Bravo"])
 
     def test_generate_and_copy_uses_target_and_clipboard_once(self):
         copied = []
